@@ -1,3 +1,111 @@
+import { Button, ScrollView } from "std-widgets.slint";
+
+
+export struct UserMessageData {
+    name: string,
+    content: string
+}
+export component UserMessage {
+    in property <UserMessageData> data;
+
+    x: 25px;
+    width: 450px;
+    height: name.height + content.height + 15px;
+
+    name := Text {
+        y: 0px;
+        width: parent.width;
+        text: data.name;
+        font-size: 24px;
+        horizontal-alignment: left;
+    }
+    content := Text {
+        y: 35px;
+        width: parent.width;
+        text: data.content;
+        font-size: 16px;
+        horizontal-alignment: left;
+        wrap: word-wrap;
+    }
+}
+
+export component ChatView {
+    width: 600px;
+    height: 600px;
+
+    callback send(string);
+
+    in property <[UserMessageData]> messages;
+
+    ScrollView {
+        y: 15px;
+        height: 525px;
+
+        VerticalLayout {
+            for message in messages : UserMessage {
+                data: message;
+            }
+        }
+    } 
+
+    // Input area
+    input_rect := Rectangle {
+        background: rgb(51, 51, 48);
+        x: 10px;
+        y: 540px;
+        width: 450px;
+        height: input_field.height;
+        border-radius: 15px;
+    }
+    input_field := TextInput {
+        x: 25px;
+        y: 550px;
+        width: 425px;
+        height: 50px;
+        font-size: self.height / 2.5;
+        wrap: word-wrap;
+        cursor-position-changed(position) => {
+            self.height = position.y * 425;
+        }
+    }
+
+    // Send button
+    Rectangle {
+        background: rgb(51, 51, 48);
+        x: send_button.x;
+        y: send_button.y;
+        width: send_button.width;
+        height: send_button.height;
+        border-radius: 15px;
+    }
+    Text {
+        x: send_button.x + 25px;
+        y: send_button.y;
+        text: "Send";
+        font-size: 32px;
+    }
+    send_button := Button {
+        x: 470px;
+        y: input_rect.y;
+        width: 120px;
+        height: input_field.height;
+        opacity: 0;     
+        clicked => {
+            send(input_field.text);
+            input_field.text = "";
+        }
+    }
+}
 export component MainWindow inherits Window {
-    // TODO
+    width: 600px;
+    height: 600px;
+
+    in property <[UserMessageData]> messages;
+
+    callback send-message(string);
+
+    ChatView {
+        messages: messages;
+        send(content) => {send-message(content)}
+    }
 }
