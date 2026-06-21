@@ -1,16 +1,24 @@
 // client and server shared stuff goes here
 
 use anyhow::Ok;
-use iroh::endpoint::{RecvStream, SendStream};
+use iroh::{
+    EndpointAddr,
+    endpoint::{RecvStream, SendStream},
+};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+pub const ALPN: &[u8] = b"chat_alpn";
 
 /// data meant to be used by the client
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ClientNetworkData {}
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum ClientLocalData {}
+pub enum ClientLocalData {
+    Shutdown,
+    ServerAddr(EndpointAddr),
+}
 
 /// data meant to be used by the server
 #[derive(Debug, Serialize, Deserialize)]

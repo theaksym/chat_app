@@ -22,8 +22,20 @@ impl App {
     pub async fn start(&mut self) -> anyhow::Result<()> {
         self.recv_loop().await
     }
+    async fn shutdown(&mut self) -> anyhow::Result<()> {
+        self.client_sender.send(ClientLocalData::Shutdown).await?;
+        self.client_sender.closed().await; // client closed at this point
+        self.receiver.close();
+
+        Ok(())
+    }
     async fn recv_loop(&mut self) -> anyhow::Result<()> {
-        while let Some(data) = self.receiver.recv().await {}
+        while let Some(data) = self.receiver.recv().await {
+            match data {
+                ClientLocalData::Shutdown => self.shutdown().await?,
+                _ => {}
+            }
+        }
 
         Ok(())
     }

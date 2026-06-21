@@ -1,4 +1,3 @@
-use anyhow::Ok;
 use tokio::{spawn, sync::mpsc};
 
 use crate::{app::App, client::Client, interface::Interface};
@@ -25,6 +24,7 @@ async fn main() -> anyhow::Result<()> {
 
     spawn(async move {
         Client::new(send_for_client, send_for_protocol, recv_for_client)
+            .await?
             .start()
             .await
     });

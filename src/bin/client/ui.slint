@@ -1,16 +1,15 @@
 import { Button, ScrollView } from "std-widgets.slint";
 
-
 export struct UserMessageData {
     name: string,
     content: string
 }
-export component UserMessage {
+component UserMessage {
     in property <UserMessageData> data;
 
     x: 25px;
     width: 450px;
-    height: name.height + content.height + 15px;
+    height: name.height + content.height;
 
     name := Text {
         y: 0px;
@@ -28,20 +27,419 @@ export component UserMessage {
         wrap: word-wrap;
     }
 }
+export struct RoomData {
+    name: string,
+    id: string,
+}
+component Room {
+    height: 100px;
+    width: 315px;
 
-export component ChatView {
-    width: 600px;
+    in property <RoomData> data: { name: "Hut of lies", id: "1234" };
+
+    callback join(string);
+    callback remove(string);
+
+    // Background
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 200px;
+        height: 100px;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+
+    // Name
+    Text {
+        x: 10px;
+        y: 5px;
+        text: data.name;
+        font-size: 24px;
+        width: 200px;
+        wrap: word-wrap;
+    }
+
+    // ID
+    Text {
+        x: 10px;
+        y: 80px;
+        text: "ID: " + data.id;
+        font-size: 12px;
+        width: 200px;
+        wrap: word-wrap;
+    }
+
+    // Join button
+    Rectangle {
+        x: join_button.x;
+        y: join_button.y;
+        width: join_button.width;
+        height: join_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: join_button.x + 25px;
+        y: join_button.y + 5px;
+        text: "Join";
+        font-size: 24px;
+    }
+    join_button := Button {
+        x: 215px;
+        y: 0px;
+        width: 100px;
+        height: 45px;
+        opacity: 0;     
+        clicked => {
+            join(data.id);
+        }
+    }
+
+    // Remove button
+    Rectangle {
+        x: remove_button.x;
+        y: remove_button.y;
+        width: remove_button.width;
+        height: remove_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: remove_button.x + 5px;
+        y: remove_button.y + 5px;
+        text: "Remove";
+        font-size: 24px;
+    }
+    remove_button := Button {
+        x: 215px;
+        y: 55px;
+        width: 100px;
+        height: 45px;
+        opacity: 0;     
+        clicked => {
+            remove(data.id);
+        }
+    }
+}
+component ServerAddr {
+    callback set-server-addr(string);
+
+    // Background
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 400px;
+        height: 175px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        x: 30px;
+        y: 15px;
+        text: "Server address";
+        font-size: 32px;
+    }
+
+    Text {
+        x: 30px;
+        y: 75px;
+        text: "Input server address. THIS MUST BE SET!";
+        font-size: 16px;
+    }
+
+    // Input field
+    input_rect := Rectangle {
+        x: 15px;
+        y: 110px;
+        width: 360px;
+        height: 50px;
+        border-radius: 15px;
+        background: rgb(50, 50, 50);
+    }
+    input_field := TextInput {
+        x: input_rect.x + 15px;
+        y: input_rect.y;
+        width: input_rect.width;
+        height: input_rect.height;
+        font-size: 32px;
+        edited => {set-server-addr(self.text)}
+    }
+}
+component CreateRoom {
+    callback create-room(string);
+
+    // Background
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 400px;
+        height: 175px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        x: 30px;
+        y: 15px;
+        text: "Create room";
+        font-size: 32px;
+    }
+
+    Text {
+        x: 30px;
+        y: 75px;
+        text: "Input room name";
+        font-size: 16px;
+    }
+
+    // Input field
+    input_rect := Rectangle {
+        x: 15px;
+        y: 110px;
+        width: 230px;
+        height: 50px;
+        border-radius: 15px;
+        background: rgb(50, 50, 50);
+    }
+    input_field := TextInput {
+        x: input_rect.x + 15px;
+        y: input_rect.y;
+        width: input_rect.width;
+        height: input_rect.height;
+        font-size: 32px;
+    }
+
+    // Join button
+    Rectangle {
+        x: create_button.x + 25px;
+        y: create_button.y + 25px;
+        width: create_button.width;
+        height: create_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: create_button.x + 35px;
+        y: create_button.y + 25px;
+        text: "Create";
+        font-size: 32px;
+    }
+    create_button := Button {
+        x: 235px;
+        y: 85px;
+        width: 125px;
+        height: input_rect.height;
+        opacity: 0;     
+        clicked => {
+            create-room(input_field.text);
+            input_field.text = "";
+        }
+    }
+}
+component AddRoom {
+    callback add-room(string);
+
+    // Background
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 400px;
+        height: 175px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        x: 30px;
+        y: 15px;
+        text: "Add room";
+        font-size: 32px;
+    }
+
+    Text {
+        x: 30px;
+        y: 75px;
+        text: "Input room ID";
+        font-size: 16px;
+    }
+
+    // Input field
+    input_rect := Rectangle {
+        x: 15px;
+        y: 110px;
+        width: 270px;
+        height: 50px;
+        border-radius: 15px;
+        background: rgb(50, 50, 50);
+    }
+    input_field := TextInput {
+        x: input_rect.x + 15px;
+        y: input_rect.y;
+        width: input_rect.width;
+        height: input_rect.height;
+        font-size: 32px;
+    }
+
+    // Join button
+    Rectangle {
+        x: create_button.x + 25px;
+        y: create_button.y + 25px;
+        width: create_button.width;
+        height: create_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: create_button.x + 35px;
+        y: create_button.y + 25px;
+        text: "Add";
+        font-size: 32px;
+    }
+    create_button := Button {
+        x: 275px;
+        y: 85px;
+        width: 85px;
+        height: input_rect.height;
+        opacity: 0;     
+        clicked => {
+            add-room(input_field.text);
+            input_field.text = "";
+        }
+    }
+}
+component MainMenu {
+    width: 800px;
     height: 600px;
 
-    callback send(string);
+    callback set-server-addr(string);
+    callback join-room(string);
+    callback create-room(string);
+    callback add-room(string);
+    callback remove-room(string);
 
-    in property <[UserMessageData]> messages;
+    in property <[RoomData]> rooms;
+
+    ServerAddr {
+        x: 15px;
+        y: 15px;
+        set-server-addr(addr) => {set-server-addr(addr)}
+    }
+
+    CreateRoom {
+        x: 15px;
+        y: 212.5px;
+        create-room(name) => {create-room(name)}
+    }
+
+    AddRoom {
+        x: 15px;
+        y: 410px;
+        add-room(id) => {add-room(id)}
+    }
+
+    // Rooms
+    Rectangle {
+        x: 430px;
+        y: 15px;
+        width: 345px;
+        height: 570px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        x: 460px;
+        y: 25px;
+        text: "Rooms";
+        font-size: 32px;
+    }
 
     ScrollView {
-        y: 15px;
-        height: 525px;
+        x: 445px;
+        y: 75px;
+        height: 510px;
 
         VerticalLayout {
+            spacing: 15px;
+
+            for room in rooms: Room {
+                data: room;
+                join(id) => {join-room(id)}
+                remove(id) => {remove-room(id)}
+            }
+        }
+    }
+}
+component ChatView {
+    width: 800px;
+    height: 600px;
+
+    callback back();
+    callback send(string);
+
+    in property <string> room-name;
+    in property <[UserMessageData]> messages;
+
+    // Top panel
+    Rectangle {
+        y: 0px;
+        width: 100%;
+        height: 50px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        y: 0px;
+        text: room-name;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+        font-size: 32px;
+    }
+
+    // Back button
+    Rectangle {
+        x: back_button.x;
+        y: back_button.y;
+        width: back_button.width;
+        height: back_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: back_button.x + 20px;
+        y: back_button.y;
+        text: "Back";
+        font-size: 28px;
+    }
+    back_button := Button {
+        x: 15px;
+        y: 5px;
+        width: 100px;
+        height: 40px;
+        opacity: 0;     
+        clicked => {
+            back();
+            input_field.text = "";
+        }
+    }
+
+    // Bottom panel
+    Rectangle {
+        y: 525px;
+        width: 100%;
+        height: 75px;
+        background: rgb(35, 35, 35);
+    }
+
+    ScrollView {
+        y: 50px;
+        height: 475px;
+
+        VerticalLayout {
+            spacing: 15px;
+
             for message in messages : UserMessage {
                 data: message;
             }
@@ -50,32 +448,32 @@ export component ChatView {
 
     // Input area
     input_rect := Rectangle {
-        background: rgb(51, 51, 48);
         x: 10px;
         y: 540px;
-        width: 450px;
+        width: 650px;
         height: input_field.height;
+        background: rgb(50, 50, 50);
         border-radius: 15px;
     }
     input_field := TextInput {
         x: 25px;
         y: 550px;
-        width: 425px;
+        width: 625px;
         height: 50px;
         font-size: self.height / 2.5;
         wrap: word-wrap;
         cursor-position-changed(position) => {
-            self.height = position.y * 425;
+            //
         }
     }
 
     // Send button
     Rectangle {
-        background: rgb(51, 51, 48);
         x: send_button.x;
         y: send_button.y;
         width: send_button.width;
         height: send_button.height;
+        background: rgb(50, 50, 50);
         border-radius: 15px;
     }
     Text {
@@ -85,7 +483,7 @@ export component ChatView {
         font-size: 32px;
     }
     send_button := Button {
-        x: 470px;
+        x: 670px;
         y: input_rect.y;
         width: 120px;
         height: input_field.height;
@@ -97,15 +495,50 @@ export component ChatView {
     }
 }
 export component MainWindow inherits Window {
-    width: 600px;
+    width: 800px;
     height: 600px;
 
+    in-out property <bool> main-menu-visible;
+    in-out property <bool> chat-view-visible;
+
+    in property <[RoomData]> rooms: [
+        { name: "hut of lies", id: 1234 },
+        { name: "red room", id: 1234 },
+        { name: "pig den", id: 1234 },
+        { name: "flesh chamber", id: 1234 },
+        { name: "the lean years", id: 1234 },
+        { name: "excellent servant", id: 1234 },
+        { name: "terrible master", id: 1234 },
+    ];
+    in property <string> room-name;
     in property <[UserMessageData]> messages;
 
     callback send-message(string);
+    callback chat-view-back();
+    callback set-server-addr(string);
+    callback create-room(string);
+    callback add-room(string);
+    callback remove-room(string);
 
+    init => { 
+        main-menu-visible = true; 
+        chat-view-visible = false; 
+    }
+
+    MainMenu {
+        rooms: rooms;
+        visible: main-menu-visible;
+        set-server-addr(addr) => {set-server-addr(addr)}
+        add-room(id) => {add-room(id)}
+        create-room(name) => {create-room(name)}
+        remove-room(id) => {remove-room(id)}
+    }
     ChatView {
+        visible: chat-view-visible;
+        room-name: room-name;
         messages: messages;
+        
         send(content) => {send-message(content)}
+        back => {chat-view-back()}
     }
 }
