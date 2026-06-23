@@ -1,7 +1,6 @@
 use anyhow::Ok;
 use chat_app::{ALPN, ClientLocalData};
 use iroh::{Endpoint, EndpointAddr, endpoint::presets, protocol::Router};
-use iroh_ping::Ping;
 use tokio::sync::mpsc;
 
 use crate::protocol::ClientProtocol;
@@ -46,7 +45,10 @@ impl Client {
         while let Some(data) = self.receiver.recv().await {
             match data {
                 ClientLocalData::Shutdown => self.shutdown().await?,
-                _ => {}
+                ClientLocalData::ServerAddr(addr) => {
+                    self.server_addr = Some(addr);
+                    println!("Server address set!");
+                }
             }
         }
 

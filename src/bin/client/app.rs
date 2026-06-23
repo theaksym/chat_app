@@ -33,7 +33,11 @@ impl App {
         while let Some(data) = self.receiver.recv().await {
             match data {
                 ClientLocalData::Shutdown => self.shutdown().await?,
-                _ => {}
+                ClientLocalData::ServerAddr(addr) => {
+                    self.client_sender
+                        .send(ClientLocalData::ServerAddr(addr))
+                        .await?
+                }
             }
         }
 

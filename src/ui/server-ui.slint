@@ -1,0 +1,268 @@
+import { Button, ScrollView, StandardButton } from "std-widgets.slint";
+
+export struct UiUserMessageData {
+    name: string,
+    content: string
+}
+export component UiUserMessage {
+    in property <UiUserMessageData> data;
+
+    x: 25px;
+    width: 450px;
+    height: name.height + content.height;
+
+    name := Text {
+        y: 0px;
+        width: parent.width;
+        text: data.name;
+        font-size: 24px;
+        horizontal-alignment: left;
+    }
+    content := Text {
+        y: 35px;
+        width: parent.width;
+        text: data.content;
+        font-size: 16px;
+        horizontal-alignment: left;
+        wrap: word-wrap;
+    }
+}
+export struct UiRoomData {
+    name: string,
+    id: string,
+}
+export component ServerUiRoom {
+    height: 100px;
+    width: 315px;
+
+    in property <UiRoomData> data;
+
+    callback delete(string);
+
+    // Background
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 200px;
+        height: 100px;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+
+    // Name
+    Text {
+        x: 10px;
+        y: 5px;
+        text: data.name;
+        font-size: 24px;
+        width: 185px;
+        wrap: word-wrap;
+    }
+
+    // ID
+    Text {
+        x: 10px;
+        y: 80px;
+        text: "ID: " + data.id;
+        font-size: 12px;
+        width: 200px;
+        wrap: word-wrap;
+    }
+
+    // Delete button
+    Rectangle {
+        x: delete_button.x;
+        y: delete_button.y;
+        width: delete_button.width;
+        height: delete_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: delete_button.x + 15px;
+        y: delete_button.y + 30px;
+        text: "Delete";
+        font-size: 24px;
+    }
+    delete_button := Button {
+        x: 215px;
+        y: 0px;
+        width: 100px;
+        height: 100px;
+        opacity: 0;     
+        clicked => {
+            delete(data.id);
+        }
+    }
+}
+export component CreateRoom {
+    callback create-room(string);
+
+    // Background
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 400px;
+        height: 175px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        x: 30px;
+        y: 15px;
+        text: "Create room";
+        font-size: 32px;
+    }
+
+    Text {
+        x: 30px;
+        y: 75px;
+        text: "Input room name";
+        font-size: 16px;
+    }
+
+    // Input field
+    input_rect := Rectangle {
+        x: 15px;
+        y: 110px;
+        width: 245px;
+        height: 50px;
+        border-radius: 15px;
+        background: rgb(50, 50, 50);
+    }
+    input_field := TextInput {
+        x: input_rect.x + 15px;
+        y: input_rect.y;
+        width: input_rect.width;
+        height: input_rect.height;
+        font-size: 32px;
+    }
+
+    // Create button
+    Rectangle {
+        x: create_button.x + 25px;
+        y: create_button.y + 25px;
+        width: create_button.width;
+        height: create_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: create_button.x + 32.5px;
+        y: create_button.y + 25px;
+        text: "Create";
+        font-size: 32px;
+    }
+    create_button := Button {
+        x: 245px;
+        y: 85px;
+        width: 115px;
+        height: input_rect.height;
+        opacity: 0;     
+        clicked => {
+            create-room(input_field.text);
+            input_field.text = "";
+        }
+    }
+}
+export component ServerMenu {
+    width: 800px;
+    height: 600px;
+
+    in property <string> ticket;
+    in property <[UiRoomData]> rooms;
+
+    callback create-room(string);
+    callback delete-room(string);
+    callback copy-ticket(string);
+
+    CreateRoom {
+        x: 15px;
+        y: 15px;
+        create-room(id) => {create-room(id)}
+    }
+
+    Rectangle {
+        x: 15px;
+        y: 205px;
+        width: 400px;
+        height: 250px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+    Text {
+        x: 30px;
+        y: 220px;
+        width: 375px;
+        text: "Server address";
+        font-size: 24px;
+        wrap: word-wrap;
+    }
+    Text {
+        x: 30px;
+        y: 275px;
+        width: 375px;
+        text: "endpointac3llqifvfbvrfgnrzxf4dfkqdkqnupc5oc4cmptjrwqidojtvrpuaqbadakqajx77gagaibfigtgqoei6urbyd6ek6rya2wfhyzmaq";
+        font-size: 24px;
+        wrap: word-wrap;
+    }
+
+    // Copy button
+    Rectangle {
+        x: copy_button.x + 25px;
+        y: copy_button.y + 25px;
+        width: copy_button.width;
+        height: copy_button.height;
+        background: rgb(50, 50, 50);
+        border-radius: 15px;
+    }
+    Text {
+        x: copy_button.x + 32.5px;
+        y: copy_button.y + 25px;
+        text: "Copy";
+        font-size: 32px;
+    }
+    copy_button := Button {
+        x: 245px;
+        y: 195px;
+        width: 90px;
+        height: 50px;
+        opacity: 0;     
+        clicked => {
+            copy-ticket(ticket);
+        }
+    }
+
+    // Rooms
+    Rectangle {
+        x: 430px;
+        y: 15px;
+        width: 345px;
+        height: 570px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        x: 460px;
+        y: 25px;
+        text: "Rooms";
+        font-size: 32px;
+    }
+
+    ScrollView {
+        x: 445px;
+        y: 75px;
+        height: 510px;
+
+        VerticalLayout {
+            spacing: 15px;
+
+            for room in rooms: ServerUiRoom {
+                data: room;
+                delete(id) => {delete-room(id)}
+            }
+        }
+    }
+}

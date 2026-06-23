@@ -1,0 +1,84 @@
+import { UiRoomData, UiUserMessageData, UiUserMessage, ClientMenu, ChatView } from "client-ui.slint";
+import { ServerMenu } from "server-ui.slint";
+
+export component ClientWindow inherits Window {
+    width: 800px;
+    height: 600px;
+
+    in-out property <bool> main-menu-visible;
+    in-out property <bool> chat-view-visible;
+
+    in property <[UiRoomData]> rooms: [
+        { name: "hut of lies", id: 1234 },
+        { name: "red room", id: 1234 },
+        { name: "pig den", id: 1234 },
+        { name: "flesh chamber", id: 1234 },
+        { name: "the lean years", id: 1234 },
+        { name: "excellent servant", id: 1234 },
+        { name: "terrible master", id: 1234 },
+    ];
+    in property <string> room-name;
+    in property <[UiUserMessageData]> messages;
+
+    callback send-message(string);
+    callback chat-view-back();
+    callback set-server-ticket(string);
+    callback add-room(string);
+    callback remove-room(string);
+
+    init => { 
+        main-menu-visible = true; 
+        chat-view-visible = false; 
+    }
+
+    ClientMenu {
+        rooms: rooms;
+        visible: main-menu-visible;
+        set-server-ticket(addr) => {set-server-ticket(addr)}
+        add-room(id) => {add-room(id)}
+        remove-room(id) => {remove-room(id)}
+    }
+    ChatView {
+        visible: chat-view-visible;
+        room-name: room-name;
+        messages: messages;
+        
+        send(content) => {send-message(content)}
+        back => {chat-view-back()}
+    }
+}
+export component ServerWindow inherits Window {
+    width: 800px;
+    height: 600px;
+
+    in property <string> ticket;
+    in property <[UiRoomData]> rooms;
+
+    callback create-room(string);
+    callback delete-room(string);
+    callback copy-ticket(string);
+
+    ServerMenu {
+        ticket: ticket;
+        rooms: rooms;
+        create-room(name) => {create-room(name)}
+        delete-room(id) => {delete-room(id)}
+        copy-ticket(ticket) => {copy-ticket(ticket)}
+    }
+}
+export component OfflineServerAddrDialog inherits Dialog {
+    Text {
+        text: "This server address is currently offline!";
+        font-size: 32px;
+        width: 400px;
+        wrap: word-wrap;
+    }
+}
+export component TicketCopyFailure inherits Dialog {
+    Text {
+        text: "Failed to copy the ticket!";
+        font-size: 32px;
+        width: 400px;
+        wrap: word-wrap;
+    }
+}
