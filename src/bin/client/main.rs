@@ -4,6 +4,7 @@ use crate::{app::App, client::Client, interface::Interface};
 
 mod app;
 mod client;
+mod database;
 mod interface;
 mod protocol;
 

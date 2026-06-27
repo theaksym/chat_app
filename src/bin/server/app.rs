@@ -1,14 +1,21 @@
-use std::fs::{File, create_dir_all};
+use std::collections::{HashMap, HashSet};
 
 use anyhow::Ok;
-use chat_app::{RoomData, SERVER_DATA_PATH, SERVER_ROOMS_PATH, ServerLocalData, UserMessageData};
-use sqlite::State;
-use tokio::sync::mpsc;
+use chat_app::{RoomData, ServerLocalData, UserMessageData};
+use iroh::EndpointAddr;
+use tokio::{spawn, sync::mpsc};
+
+use crate::database::{
+    delete_room, generate_room_id, get_messages, get_room, insert_room, save_message,
+    set_up_local_data,
+};
 
 pub struct App {
     interface_sender: mpsc::Sender<ServerLocalData>,
     server_sender: mpsc::Sender<ServerLocalData>,
     receiver: mpsc::Receiver<ServerLocalData>,
+
+    clients: HashMap<String, HashSet<EndpointAddr>>,
 }
 impl App {
     pub fn new(
@@ -20,61 +27,22 @@ impl App {
             interface_sender,
             server_sender,
             receiver,
+            clients: HashMap::new(),
         }
     }
     pub async fn start(&mut self) -> anyhow::Result<()> {
-        self.set_up_local_data().await?;
+        self.setup()?;
         self.recv_loop().await
     }
-    async fn set_up_local_data(&mut self) -> anyhow::Result<()> {
-        let data_path = SERVER_DATA_PATH.clone();
-
-        if !data_path.exists() {
-            create_dir_all(data_path)?;
-        }
-
-        let rooms_path = SERVER_ROOMS_PATH.clone();
-
-        if !rooms_path.exists() {
-            File::create(rooms_path)?;
-        }
-
-        create_database()?;
-
-        insert_room(RoomData::new("1234", "hut of lies"))?;
-        save_message(UserMessageData::new(
-            "1234",
-            "2137",
-            "we've all been through it in here",
-        ))?;
-        save_message(UserMessageData::new(
-            "1234",
-            "2137",
-            "we're still human beings",
-        ))?;
-        save_message(UserMessageData::new("1234", "2137", "dignity!"))?;
-
-        if get_room("1234")?.is_some() {
-            println!("got room!!!");
-        }
-
-        let messages = get_messages("1234", 2)?;
-
-        for message in messages {
-            println!("{}", message.content);
-        }
-
-        delete_room("1234")?;
-
-        if get_room("1234")?.is_none() {
-            println!("removed room!!!");
-        }
+    fn setup(&mut self) -> anyhow::Result<()> {
+        set_up_local_data()?;
 
         Ok(())
     }
+
     async fn shutdown(&mut self) -> anyhow::Result<()> {
         self.server_sender.send(ServerLocalData::Shutdown).await?;
-        self.server_sender.closed().await; // client closed at this point
+        self.server_sender.closed().await;
         self.receiver.close();
 
         Ok(())
@@ -88,110 +56,123 @@ impl App {
                         .send(ServerLocalData::ServerTicket(addr))
                         .await?
                 }
+                ServerLocalData::CreateRoomRequest(name) => {
+                    let sender_clone = self.interface_sender.clone();
+                    spawn(
+                        async move { Self::handle_create_room_request(name, sender_clone).await },
+                    );
+                }
+                ServerLocalData::DeleteRoomRequest(id) => {
+                    let sender_clone = self.interface_sender.clone();
+                    spawn(async move { Self::handle_delete_room_request(id, sender_clone).await });
+                }
+                ServerLocalData::Joined(addr, room_id) => {
+                    self.on_client_joined(addr, room_id).await?;
+                }
+                ServerLocalData::Left(addr, room_id) => {
+                    if let Some(set) = self.clients.get_mut(&room_id) {
+                        set.remove(&addr);
+                        println!("Removed addr!!");
+
+                        if set.len() == 0 {
+                            self.clients.remove(&room_id);
+                        }
+                    }
+                }
+                ServerLocalData::MessageReceived(data) => {
+                    self.on_message_received(data).await?;
+                }
+                _ => {}
             }
+        }
+
+        println!("Channel closed!");
+
+        Ok(())
+    }
+    async fn on_client_joined(
+        &mut self,
+        addr: EndpointAddr,
+        room_id: String,
+    ) -> anyhow::Result<()> {
+        if !self.clients.contains_key(&room_id) {
+            println!("Added addr!!");
+            self.clients.insert(room_id.clone(), HashSet::new());
+        }
+
+        let addr_clone = addr.clone();
+
+        if let Some(set) = self.clients.get_mut(&room_id) {
+            set.insert(addr.clone());
+        }
+
+        let sender_clone = self.server_sender.clone();
+
+        spawn(async move { Self::send_messages(sender_clone, addr_clone, room_id).await });
+
+        self.server_sender
+            .send(ServerLocalData::ChatView(addr))
+            .await?;
+
+        Ok(())
+    }
+    async fn send_messages(
+        sender: mpsc::Sender<ServerLocalData>,
+        addr: EndpointAddr,
+        room_id: String,
+    ) -> anyhow::Result<()> {
+        let messages = get_messages(&room_id, 10)?;
+
+        sender
+            .send(ServerLocalData::SendMessages(addr, messages))
+            .await?;
+
+        Ok(())
+    }
+    async fn on_message_received(&mut self, data: UserMessageData) -> anyhow::Result<()> {
+        if get_room(&data.room_id)?.is_none() {
+            return Ok(());
+        }
+
+        save_message(data.clone())?;
+
+        let Some(addrs) = self.clients.get(&data.room_id) else {
+            return Ok(());
+        };
+
+        for addr in addrs {
+            self.server_sender
+                .send(ServerLocalData::SendMessages(
+                    addr.clone(),
+                    vec![data.clone()],
+                ))
+                .await?;
         }
 
         Ok(())
     }
-}
-fn create_database() -> anyhow::Result<()> {
-    let conn = sqlite::open(SERVER_ROOMS_PATH.clone())?;
-
-    let query = "
-    CREATE TABLE IF NOT EXISTS rooms (id TEXT, name TEXT);
-    CREATE TABLE IF NOT EXISTS messages (room_id TEXT, user_id TEXT, content TEXT)
-    ";
-
-    conn.execute(query)?;
-
-    Ok(())
-}
-fn insert_room(data: RoomData) -> anyhow::Result<()> {
-    let conn = sqlite::open(SERVER_ROOMS_PATH.clone())?;
-
-    let query = "INSERT INTO rooms VALUES (:id, :name);";
-
-    let mut statement = conn.prepare(query)?;
-    statement.bind((":id", data.id.as_str()))?;
-    statement.bind((":name", data.name.as_str()))?;
-
-    while let std::result::Result::Ok(State::Row) = statement.next() {}
-
-    Ok(())
-}
-fn delete_room(id: &str) -> anyhow::Result<()> {
-    let conn = sqlite::open(SERVER_ROOMS_PATH.clone())?;
-
-    let query = "
-    DELETE FROM rooms WHERE id = :id;
-    DELETE FROM messages WHERE room_id := :id;
-    ";
-
-    let mut statement = conn.prepare(query)?;
-    statement.bind((":id", id))?;
-
-    while let std::result::Result::Ok(State::Row) = statement.next() {}
-
-    Ok(())
-}
-fn get_room(id: &str) -> anyhow::Result<Option<RoomData>> {
-    let conn = sqlite::open(SERVER_ROOMS_PATH.clone())?;
-
-    let query = "SELECT * FROM rooms WHERE id = :id";
-
-    let mut statement = conn.prepare(query)?;
-
-    statement.bind((":id", id))?;
-
-    while let std::result::Result::Ok(State::Row) = statement.next() {
-        let id = statement.read::<String, _>("id")?;
-        let name = statement.read::<String, _>("name")?;
+    async fn handle_create_room_request(
+        name: String,
+        sender: mpsc::Sender<ServerLocalData>,
+    ) -> anyhow::Result<()> {
+        let id = generate_room_id()?;
 
         let data = RoomData::new(&id, &name);
-        return Ok(Some(data));
+
+        insert_room(data.clone())?;
+
+        sender.send(ServerLocalData::AddRoomUI(data)).await?;
+
+        Ok(())
     }
+    async fn handle_delete_room_request(
+        id: String,
+        sender: mpsc::Sender<ServerLocalData>,
+    ) -> anyhow::Result<()> {
+        delete_room(&id)?;
 
-    Ok(None)
-}
-fn save_message(data: UserMessageData) -> anyhow::Result<()> {
-    let conn = sqlite::open(SERVER_ROOMS_PATH.clone())?;
+        sender.send(ServerLocalData::RemoveRoomUI(id)).await?;
 
-    let query = "INSERT INTO messages VALUES (:room_id, :user_id, :content);";
-
-    let mut statement = conn.prepare(query)?;
-    statement.bind((":room_id", data.room_id.as_str()))?;
-    statement.bind((":user_id", data.user_id.as_str()))?;
-    statement.bind((":content", data.content.as_str()))?;
-
-    while let std::result::Result::Ok(State::Row) = statement.next() {}
-
-    Ok(())
-}
-fn get_messages(room_id: &str, amount: usize) -> anyhow::Result<Vec<UserMessageData>> {
-    let conn = sqlite::open(SERVER_ROOMS_PATH.clone())?;
-
-    let query = "SELECT * FROM messages WHERE room_id = :id";
-
-    let mut statement = conn.prepare(query)?;
-
-    statement.bind((":id", room_id))?;
-
-    let mut messages = Vec::with_capacity(amount);
-
-    let mut count = 0;
-
-    while let std::result::Result::Ok(State::Row) = statement.next()
-        && count < amount
-    {
-        let room_id = statement.read::<String, _>("room_id")?;
-        let user_id = statement.read::<String, _>("user_id")?;
-        let content = statement.read::<String, _>("content")?;
-
-        let data = UserMessageData::new(&room_id, &user_id, &content);
-        messages.push(data);
-
-        count += 1;
+        Ok(())
     }
-
-    Ok(messages)
 }

@@ -3,6 +3,7 @@ use tokio::{spawn, sync::mpsc};
 use crate::{app::App, interface::Interface, server::Server};
 
 mod app;
+mod database;
 mod interface;
 mod protocol;
 mod server;

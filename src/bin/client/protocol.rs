@@ -1,5 +1,5 @@
 use anyhow::Ok;
-use chat_app::ClientLocalData;
+use chat_app::{ClientLocalData, ClientNetworkData, recv_data};
 use iroh::{
     endpoint::{Connection, VarInt},
     protocol::{AcceptError, ProtocolHandler},
@@ -18,6 +18,31 @@ impl ClientProtocol {
 impl ProtocolHandler for ClientProtocol {
     async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
         let (mut send_stream, mut recv_stream) = connection.accept_bi().await?;
+
+        if let std::result::Result::Ok(Some(data)) =
+            recv_data::<ClientNetworkData>(&mut recv_stream).await
+        {
+            match data {
+                ClientNetworkData::ReceiveMessages(messages) => {
+                    let _ = self
+                        .sender
+                        .send(ClientLocalData::ReceiveMessages(messages))
+                        .await;
+                }
+                ClientNetworkData::JoinAccepted(room_id) => {
+                    let _ = self
+                        .sender
+                        .send(ClientLocalData::JoinAccepted(room_id))
+                        .await;
+                }
+                ClientNetworkData::RoomAdded(data) => {
+                    let _ = self
+                        .sender
+                        .send(ClientLocalData::AddRoomAccepted(data))
+                        .await;
+                }
+            }
+        }
 
         connection.close(VarInt::from_u32(0), b"thanks guh");
 

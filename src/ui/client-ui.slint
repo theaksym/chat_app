@@ -145,7 +145,7 @@ export component ServerTicket {
     Text {
         x: 30px;
         y: 75px;
-        text: "Input server ticket. THIS MUST BE SET!";
+        text: "Input server ticket";
         font-size: 16px;
     }
 
@@ -165,6 +165,51 @@ export component ServerTicket {
         height: input_rect.height;
         font-size: 32px;
         edited => {set-server-ticket(self.text)}
+    }
+}
+export component UserName {
+    callback set-user-name(string);
+
+    // Background
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 400px;
+        height: 175px;
+        border-radius: 15px;
+        background: rgb(35, 35, 35);
+    }
+
+    Text {
+        x: 30px;
+        y: 15px;
+        text: "User name";
+        font-size: 32px;
+    }
+
+    Text {
+        x: 30px;
+        y: 75px;
+        text: "Input user name";
+        font-size: 16px;
+    }
+
+    // Input field
+    input_rect := Rectangle {
+        x: 15px;
+        y: 110px;
+        width: 360px;
+        height: 50px;
+        border-radius: 15px;
+        background: rgb(50, 50, 50);
+    }
+    input_field := TextInput {
+        x: input_rect.x + 15px;
+        y: input_rect.y;
+        width: input_rect.width;
+        height: input_rect.height;
+        font-size: 32px;
+        edited => {set-user-name(self.text)}
     }
 }
 export component AddRoom {
@@ -242,32 +287,29 @@ export component ClientMenu {
     width: 800px;
     height: 600px;
 
+    callback set-user-name(string);
     callback set-server-ticket(string);
     callback join-room(string);
     callback add-room(string);
     callback remove-room(string);
-
     in property <[UiRoomData]> rooms;
+
+    UserName {
+        x: 15px;
+        y: 15px;
+        set-user-name(name) => {set-user-name(name)}
+    }
 
     ServerTicket {
         x: 15px;
-        y: 15px;
+        y: 212px;
         set-server-ticket(addr) => {set-server-ticket(addr)}
     }
 
     AddRoom {
         x: 15px;
-        y: 212px;
+        y: 409px;
         add-room(id) => {add-room(id)}
-    }
-
-    Text {
-        x: 30px;
-        y: 430px;
-        width: 375px;
-        text: "If you'd like to create a room instead, run the server executable and continue from here.";
-        font-size: 24px;
-        wrap: word-wrap;
     }
 
     // Rooms
@@ -366,7 +408,7 @@ export component ChatView {
 
     ScrollView {
         y: 50px;
-        height: 475px;
+        height: 465px;
 
         VerticalLayout {
             spacing: 15px;

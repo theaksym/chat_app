@@ -5,38 +5,48 @@ export component ClientWindow inherits Window {
     width: 800px;
     height: 600px;
 
-    in-out property <bool> main-menu-visible;
-    in-out property <bool> chat-view-visible;
+    private property <bool> main-menu-visible;
+    private property <bool> chat-view-visible;
 
-    in property <[UiRoomData]> rooms: [
-        { name: "hut of lies", id: 1234 },
-        { name: "red room", id: 1234 },
-        { name: "pig den", id: 1234 },
-        { name: "flesh chamber", id: 1234 },
-        { name: "the lean years", id: 1234 },
-        { name: "excellent servant", id: 1234 },
-        { name: "terrible master", id: 1234 },
-    ];
-    in property <string> room-name;
-    in property <[UiUserMessageData]> messages;
+    in property <[UiRoomData]> rooms;
+    in-out property <string> room-name;
+    in-out property <[UiUserMessageData]> messages;
 
     callback send-message(string);
     callback chat-view-back();
+    callback set-user-name(string);
     callback set-server-ticket(string);
     callback add-room(string);
     callback remove-room(string);
+    callback join-room(string);
+
+    callback main-menu();
+    callback chat-view();
 
     init => { 
-        main-menu-visible = true; 
-        chat-view-visible = false; 
+        main-menu()
+    }
+
+    main-menu => {
+        main-menu-visible = true;
+        chat-view-visible = false;
+        room-name = "";
+        messages = [];
+    }
+
+    chat-view => {
+        main-menu-visible = false;
+        chat-view-visible = true;
     }
 
     ClientMenu {
         rooms: rooms;
         visible: main-menu-visible;
+        set-user-name(name) => {set-user-name(name)}
         set-server-ticket(addr) => {set-server-ticket(addr)}
         add-room(id) => {add-room(id)}
         remove-room(id) => {remove-room(id)}
+        join-room(id) => {join-room(id)}
     }
     ChatView {
         visible: chat-view-visible;
@@ -44,7 +54,7 @@ export component ClientWindow inherits Window {
         messages: messages;
         
         send(content) => {send-message(content)}
-        back => {chat-view-back()}
+        back => {main-menu(); chat-view-back()}
     }
 }
 export component ServerWindow inherits Window {

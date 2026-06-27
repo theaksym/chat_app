@@ -8,49 +8,97 @@ use iroh::{
     endpoint::{RecvStream, SendStream},
 };
 use iroh_tickets::endpoint::EndpointTicket;
+use postcard::{from_bytes, to_stdvec};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub const ALPN: &[u8] = b"chat_alpn";
 pub const MAX_PING: Duration = Duration::from_millis(500);
-
-pub const SERVER_DATA_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+pub const CLIENT_DIR_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
     let mut buf = PathBuf::new();
 
     buf.push(env::current_dir().expect("Bad perms"));
-    buf.push("data");
+    buf.push("client_data");
 
     buf
 });
-pub const SERVER_ROOMS_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
-    let mut buf = SERVER_DATA_PATH.clone();
+pub const CLIENT_DATA_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    let mut buf = CLIENT_DIR_PATH.clone();
 
-    buf.push("rooms.sqlite");
+    buf.push("data.sqlite");
+
+    buf
+});
+pub const SERVER_DIR_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    let mut buf = PathBuf::new();
+
+    buf.push(env::current_dir().expect("Bad perms"));
+    buf.push("server_data");
+
+    buf
+});
+pub const SERVER_DATA_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    let mut buf = SERVER_DIR_PATH.clone();
+
+    buf.push("data.sqlite");
 
     buf
 });
 
-/// data meant to be used by the client
+/// Data meant to be read by the client
 #[derive(Debug, Serialize, Deserialize)]
-pub enum ClientNetworkData {}
+pub enum ClientNetworkData {
+    ReceiveMessages(Vec<UserMessageData>),
+    JoinAccepted(String),
+    RoomAdded(RoomData),
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ClientLocalData {
     Shutdown,
+    UserName(String),
     ServerAddr(EndpointAddr),
+    AddRoomsUI(Vec<RoomData>),
+    RemoveRoomUI(String),
+    ChatView,
+    ReceiveMessages(Vec<UserMessageData>),
+    AddRoomRequest(String),
+    AddRoomAccepted(RoomData),
+    JoinRequest(String),
+    LeaveRequest(String),
+    JoinAccepted(String),
+    SendMessage(String),
+    SendMessageInit(UserMessageData),
 }
 
-/// data meant to be used by the server
+/// Data meant to be read by the server
 #[derive(Debug, Serialize, Deserialize)]
-pub enum ServerNetworkData {}
+pub enum ServerNetworkData {
+    Test,
+    Joined(EndpointTicket, String),
+    Left(EndpointTicket, String),
+    AddRoomRequest(EndpointTicket, String),
+    MessageSent(UserMessageData),
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ServerLocalData {
     Shutdown,
     ServerTicket(EndpointTicket),
+    CreateRoomRequest(String),
+    DeleteRoomRequest(String),
+    AddRoomUI(RoomData),
+    RemoveRoomUI(String),
+    Joined(EndpointAddr, String),
+    Left(EndpointAddr, String),
+    SendMessages(EndpointAddr, Vec<UserMessageData>),
+    ChatView(EndpointAddr),
+    JoinAccepted(EndpointAddr, String),
+    HandleAddRoomRequest(EndpointAddr, String),
+    MessageReceived(UserMessageData),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RoomData {
     pub id: String,
     pub name: String,
@@ -64,17 +112,17 @@ impl RoomData {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserMessageData {
     pub room_id: String,
-    pub user_id: String,
+    pub user_name: String,
     pub content: String,
 }
 impl UserMessageData {
-    pub fn new(room_id: &str, user_id: &str, content: &str) -> Self {
+    pub fn new(room_id: &str, user_name: &str, content: &str) -> Self {
         Self {
             room_id: room_id.to_string(),
-            user_id: user_id.to_string(),
+            user_name: user_name.to_string(),
             content: content.to_string(),
         }
     }
@@ -84,7 +132,7 @@ pub async fn send_data<T>(stream: &mut SendStream, data: T) -> anyhow::Result<()
 where
     T: Serialize + DeserializeOwned,
 {
-    let bytes = serde_json::to_vec(&data)?;
+    let bytes = to_stdvec(&data)?;
 
     stream.write_u8(bytes.len() as u8).await?;
     stream.write_all(&bytes).await?;
@@ -104,7 +152,7 @@ where
 
     stream.read_exact(&mut data).await?;
 
-    let deserialized = serde_json::from_slice(&data)?;
+    let deserialized: T = from_bytes(&data)?;
 
     Ok(Some(deserialized))
 }
